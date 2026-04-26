@@ -251,11 +251,34 @@ function findRolloffPoint(data, loHz, hiHz, sr, direction) {{
 function findCrossover(data, fromHz, toHz, sr) {{
   const iLo = freqToIndex(fromHz, sr);
   const iHi = freqToIndex(toHz, sr);
+  const hzPerBin = sr / FFT;
+  
+  // Find all points below the average (the "valley")
+  let sum = 0, count = 0;
+  for (let i = iLo; i <= iHi && i < data.length; i++) {{
+    sum += data[i]; count++;
+  }}
+  const avg = sum / count;
+  
+  // Find the centroid of the valley (weighted average of low-energy points)
+  let weightedSum = 0, weightTotal = 0;
+  for (let i = iLo; i <= iHi && i < data.length; i++) {{
+    if (data[i] < avg) {{
+      const weight = avg - data[i]; // Weight by how much below average
+      weightedSum += i * weight;
+      weightTotal += weight;
+    }}
+  }}
+  
+  if (weightTotal > 0) {{
+    return (weightedSum / weightTotal) * hzPerBin;
+  }}
+  
+  // Fallback to simple minimum if no valley found
   let minVal = Infinity, minIdx = iLo;
   for (let i = iLo; i <= iHi && i < data.length; i++) {{
     if (data[i] < minVal) {{ minVal = data[i]; minIdx = i; }}
   }}
-  const hzPerBin = sr / FFT;
   return minIdx * hzPerBin;
 }}
 
@@ -267,7 +290,9 @@ function formatHz(hz) {{
 const smooth = {{bass:[], mid:[], high:[]}};
 const smoothPeak = {{bass:[], mid:[], high:[]}};
 const smoothXoData = {{xoLow:[], xoHigh:[]}};
+const prevXo = {{xoLow: 500, xoHigh: 4000}}; // Previous values for rate limiting
 const SMOOTH_N = 8;
+const MAX_CHANGE_PER_FRAME = 30; // Max Hz change per frame for smooth movement
 
 function smoothVal(key, val) {{
   smooth[key].push(val);
@@ -282,9 +307,20 @@ function smoothPeakVal(key, val) {{
 }}
 
 function smoothXo(key, val) {{
+  // Store up to 30 samples for smoother average
   smoothXoData[key].push(val);
-  if (smoothXoData[key].length > 12) smoothXoData[key].shift();
-  return smoothXoData[key].reduce((a,b) => a+b, 0) / smoothXoData[key].length;
+  if (smoothXoData[key].length > 30) smoothXoData[key].shift();
+  
+  // Calculate median instead of mean (more stable against outliers)
+  const sorted = [...smoothXoData[key]].sort((a,b) => a-b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  
+  // Apply rate limiting (don't allow big jumps)
+  const change = median - prevXo[key];
+  const limitedChange = Math.max(-MAX_CHANGE_PER_FRAME, Math.min(MAX_CHANGE_PER_FRAME, change));
+  prevXo[key] = prevXo[key] + limitedChange * 0.3; // Apply only 30% of change for extra smoothness
+  
+  return Math.round(prevXo[key]);
 }}
 
 // ── Recommendations with detected crossover ──
