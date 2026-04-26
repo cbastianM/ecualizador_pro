@@ -243,22 +243,19 @@ function smoothPeakVal(key, val) {{
   return smoothPeak[key].reduce((a,b) => a+b, 0) / smoothPeak[key].length;
 }}
 
-// Wider thresholds so OK is easier to reach
+// Brand-specific tips (thresholds are now defined per band inline)
 const BRAND_PROFILES = {{
   "JBL": {{
-    bass: {{ hiTh: 9, loTh: -9 }}, mid: {{ hiTh: 7, loTh: -7 }}, high: {{ hiTh: 8, loTh: -8 }},
     bassNote: "JBL tiene bass reflex potente — si suena retumbante, baja graves",
     midNote:  "La curva JBL+ tiene presencia media alta — cuidado con lo nasal",
     highNote: "JBL puede subir +10 dB en 10 kHz — suena brillante en interiores",
   }},
   "Yamaha": {{
-    bass: {{ hiTh: 9, loTh: -9 }}, mid: {{ hiTh: 7, loTh: -7 }}, high: {{ hiTh: 8, loTh: -8 }},
     bassNote: "Yamaha DXR tiene buen sub pero no es tan profundo — puede faltar pegada",
     midNote:  "Yamaha es fiel en medios — si suena nasal probablemente es la sala",
     highNote: "Yamaha tiene tweeter de titanio — los agudos picados se sienten rápido",
   }},
   "RCF": {{
-    bass: {{ hiTh: 9, loTh: -9 }}, mid: {{ hiTh: 7, loTh: -7 }}, high: {{ hiTh: 8, loTh: -8 }},
     bassNote: "RCF tiene buen punch en graves pero puede quedarse corto en exteriores",
     midNote:  "RCF es claro en medios — ideal para voces",
     highNote: "RCF tiene buena extension en agudos — si falta brillo revisa posicion",
@@ -276,15 +273,21 @@ function getBrandProfile(marca) {{
   return BRAND_PROFILES[marca] || BRAND_PROFILES["JBL"];
 }}
 
-function getInstruction(bandId, dbRelative, peakHz, context) {{
+function getInstruction(bandId, level, peakHz, context) {{
   const lugar = context.lugar || "";
   const genero = context.genero || "";
   const marca = context.marca || "JBL";
   const exterior = lugar.includes("aire libre") || lugar.includes("Carpa");
 
   const profile = getBrandProfile(marca);
-  const thresh = profile[bandId] || profile.bass;
   const bandTip = profile[bandId + "Note"] || "";
+  
+  // Independent thresholds per band (absolute dB levels)
+  // Mid band is more sensitive (tighter thresholds)
+  let hiTh, loTh;
+  if (bandId === "bass") {{ hiTh = -45; loTh = -65; }}
+  else if (bandId === "mid") {{ hiTh = -50; loTh = -70; }}  // More sensitive (tighter)
+  else {{ hiTh = -48; loTh = -68; }}
 
   // Pick best EQ frequency based on peak
   const freqs = EQ_FREQ[bandId] || [1000];
@@ -314,15 +317,15 @@ function getInstruction(bandId, dbRelative, peakHz, context) {{
     status = "warn"; action = "⚠️ IGNORAR lectura";
     detail = "En exteriores el viento distorsiona los graves — no ajustes basándote en esto";
     color="#f59e0b"; bg="rgba(245,158,11,0.12)"; border="#f59e0b";
-  }} else if (dbRelative > thresh.hiTh) {{
+  }} else if (level > hiTh) {{
     status = "down";
-    const dbCut = Math.min(6, Math.max(1, Math.round((dbRelative - thresh.hiTh) / 2)));
+    const dbCut = Math.min(6, Math.max(1, Math.round((level - hiTh) / 3)));
     action = "📉 BAJAR " + dbCut + " dB en " + freqLabel;
     detail = details[bandId].down + (bandTip ? " · " + bandTip : "");
     color="#f87171"; bg="rgba(239,68,68,0.12)"; border="#ef4444";
-  }} else if (dbRelative < thresh.loTh) {{
+  }} else if (level < loTh) {{
     status = "up";
-    const dbBoost = Math.min(6, Math.max(1, Math.round((thresh.loTh - dbRelative) / 2)));
+    const dbBoost = Math.min(6, Math.max(1, Math.round((loTh - level) / 3)));
     action = "📈 SUBIR " + dbBoost + " dB en " + freqLabel;
     detail = details[bandId].up + (bandTip ? " · " + bandTip : "");
     color="#4ade80"; bg="rgba(34,197,94,0.12)"; border="#22c55e";
@@ -411,27 +414,32 @@ function loop() {{
   analyser.getFloatFrequencyData(data);
 
   drawSpectrum(data, sr);
-  const eRef = bandEnergy(data, 500, 4000, sr);
 
   BANDS.forEach(band => {{
+    // Each band is independent (absolute level, not relative to reference)
+    // Mid band has tighter thresholds (more sensitive)
     const raw = bandEnergy(data, band.lo, band.hi, sr);
-    const rel = smoothVal(band.id, raw - eRef);
+    const level = smoothVal(band.id, raw);
     const peakHz = smoothPeakVal(band.id, peakFrequency(data, band.lo, band.hi, sr));
-    const pct  = Math.min(100, Math.max(0, (rel + 30) / 50 * 100));
+    // Normalize for display: -100 dB -> 0%, -50 dB -> 50%, 0 dB -> 100%
+    const pct  = Math.min(100, Math.max(0, (level + 100) / 100 * 100));
 
     let barColor = band.color;
-    const absR = Math.abs(rel);
-    if (absR > 8)      barColor = "#ef4444";
-    else if (absR > 4) barColor = "#f59e0b";
+    // Use absolute level for color (mid band more sensitive with lower threshold)
+    const isMid = band.id === "mid";
+    const threshYellow = isMid ? -55 : -50;
+    const threshRed = isMid ? -45 : -40;
+    if (level < threshRed) barColor = "#ef4444";
+    else if (level < threshYellow) barColor = "#f59e0b";
 
     document.getElementById("b_" + band.id).style.height = pct + "%";
     document.getElementById("b_" + band.id).style.background = barColor;
     document.getElementById("g_" + band.id).style.height = pct + "%";
     document.getElementById("g_" + band.id).style.background = barColor;
-    document.getElementById("v_" + band.id).textContent = (rel >= 0 ? "+" : "") + rel.toFixed(1) + " dB";
+    document.getElementById("v_" + band.id).textContent = level.toFixed(1) + " dB";
     document.getElementById("p_" + band.id).textContent = "⚡ Pico: " + formatHz(peakHz);
 
-    const inst = getInstruction(band.id, rel, peakHz, CTX);
+    const inst = getInstruction(band.id, level, peakHz, CTX);
     const row = document.getElementById("inst_" + band.id);
     row.style.background = inst.bg;
     row.style.borderLeftColor = inst.border;
