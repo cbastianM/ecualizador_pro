@@ -61,7 +61,7 @@ col1, col2 = st.columns(2)
 with col1:
     st.markdown("""<div class="config-card">""", unsafe_allow_html=True)
     st.subheader("📍 El lugar")
-    lugar = st.selectbox("¿Dónde estás?", ["Adentro (salón, club)", "Carpa / toldo", "Alaire libre"])
+    lugar = st.selectbox("¿Dónde estás?", ["Adentro (salón, club)", "Carpa / toldo", "Al aire libre"])
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
@@ -161,11 +161,11 @@ COMPONENT_HTML = f"""
   .m-hz {{ font-size: 9px; color: #475569; margin-top: 2px; letter-spacing: .5px; }}
   .inst-header {{ font-size: 12px; font-weight: 700; color: #94a3b8; margin-bottom: 10px; letter-spacing: 1px; text-transform: uppercase; }}
   .inst-table {{ width: 100%; }}
-  .inst-header-row {{ display: grid; grid-template-columns: 80px 1fr 1fr; gap: 8px; margin-bottom: 6px; }}
+  .inst-header-row {{ display: grid; grid-template-columns: 70px 1fr 1fr; gap: 8px; margin-bottom: 6px; }}
   .inst-col-band {{ font-size: 10px; font-weight: 700; color: #64748b; letter-spacing: 1px; text-transform: uppercase; }}
   .inst-col-eq, .inst-col-xo {{ font-size: 10px; font-weight: 700; color: #64748b; letter-spacing: 1px; text-transform: uppercase; }}
   .inst-row {{
-    display: grid; grid-template-columns: 80px 1fr 1fr; gap: 8px; align-items: start;
+    display: grid; grid-template-columns: 70px 1fr 1fr; gap: 8px; align-items: start;
     padding: 10px 12px; border-radius: 10px; margin-bottom: 8px;
     background: rgba(0,0,0,0.25); border-left: 4px solid #475569;
     transition: all .35s; overflow-wrap: break-word; word-break: break-word;
@@ -197,6 +197,7 @@ const BANDS = [
   {{ id:"high", label:"BRILLO",  lo:4000, hi:16000,color:"#a78bfa" }},
 ];
 
+// ── Audio analysis functions ──
 function freqToIndex(f, sampleRate) {{
   return Math.round(f / (sampleRate / FFT));
 }}
@@ -220,6 +221,44 @@ function peakFrequency(data, lo, hi, sr) {{
   return maxIdx * hzPerBin;
 }}
 
+// ── Find -3dB rolloff point within a range (from peak going down) ──
+function findRolloffPoint(data, loHz, hiHz, sr, direction) {{
+  // direction: "low" = find where level drops -3dB below peak going LOW freq
+  //            "high" = find where level drops -3dB below peak going HIGH freq
+  const peakHz = peakFrequency(data, loHz, hiHz, sr);
+  const peakVal = data[freqToIndex(peakHz, sr)] || -100;
+  const threshold = peakVal - 3;
+  const hzPerBin = sr / FFT;
+
+  if (direction === "low") {{
+    const startIdx = freqToIndex(loHz, sr);
+    const peakIdx = freqToIndex(peakHz, sr);
+    for (let i = peakIdx; i >= startIdx; i--) {{
+      if (data[i] <= threshold) return (i + 1) * hzPerBin;
+    }}
+    return loHz;
+  }} else {{
+    const endIdx = freqToIndex(hiHz, sr);
+    const peakIdx = freqToIndex(peakHz, sr);
+    for (let i = peakIdx; i <= endIdx; i++) {{
+      if (data[i] <= threshold) return (i - 1) * hzPerBin;
+    }}
+    return hiHz;
+  }}
+}}
+
+// ── Find energy minimum between two frequency ranges (= crossover point) ──
+function findCrossover(data, fromHz, toHz, sr) {{
+  const iLo = freqToIndex(fromHz, sr);
+  const iHi = freqToIndex(toHz, sr);
+  let minVal = Infinity, minIdx = iLo;
+  for (let i = iLo; i <= iHi && i < data.length; i++) {{
+    if (data[i] < minVal) {{ minVal = data[i]; minIdx = i; }}
+  }}
+  const hzPerBin = sr / FFT;
+  return minIdx * hzPerBin;
+}}
+
 function formatHz(hz) {{
   if (hz >= 1000) return (hz / 1000).toFixed(1) + " kHz";
   return Math.round(hz) + " Hz";
@@ -227,6 +266,7 @@ function formatHz(hz) {{
 
 const smooth = {{bass:[], mid:[], high:[]}};
 const smoothPeak = {{bass:[], mid:[], high:[]}};
+const smoothXo = {{xoLow:[], xoHigh:[]}};
 const SMOOTH_N = 8;
 
 function smoothVal(key, val) {{
@@ -241,91 +281,114 @@ function smoothPeakVal(key, val) {{
   return smoothPeak[key].reduce((a,b) => a+b, 0) / smoothPeak[key].length;
 }}
 
-// ── Recommendations ──
-function getRecommendations(bandId, level, peakHz, context) {{
+function smoothXo(key, val) {{
+  smoothXo[key].push(val);
+  if (smoothXo[key].length > 12) smoothXo[key].shift();
+  return smoothXo[key].reduce((a,b) => a+b, 0) / smoothXo[key].length;
+}}
+
+// ── Recommendations with detected crossover ──
+function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh, context) {{
   const lugar = context.lugar || "";
   const genero = context.genero || "";
   const exterior = lugar.includes("aire libre") || lugar.includes("Carpa");
 
-  // Independent absolute thresholds (mid is more sensitive)
+  // Absolute thresholds (mid more sensitive)
   let hiTh, loTh;
   if (bandId === "bass") {{ hiTh = -45; loTh = -65; }}
   else if (bandId === "mid") {{ hiTh = -50; loTh = -70; }}
   else {{ hiTh = -48; loTh = -68; }}
 
-  // Crossover cut frequencies (Hz) — shifted based on room and genre
-  let xoLowCut, xoMidLow, xoMidHigh, xoHighCut;
+  // Ideal crossover targets per genre
+  let idealXoLow, idealXoHigh;
+  if (genero === "Salsa") {{ idealXoLow = 80; idealXoHigh = 5000; }}
+  else if (genero === "Rock") {{ idealXoLow = 100; idealXoHigh = 4000; }}
+  else {{ idealXoHigh = 6000; idealXoLow = 120; }} // Clasica
 
-  // Base crossover: Low < 80-120 | Mid 80-4000 | High > 4000-8000
-  if (genero === "Salsa") {{
-    xoLowCut = 40; xoMidLow = 80; xoMidHigh = 5000; xoHighCut = 16000;
-  }} else if (genero === "Rock") {{
-    xoLowCut = 30; xoMidLow = 100; xoMidHigh = 4000; xoHighCut = 16000;
-  }} else {{ // Clasica
-    xoLowCut = 50; xoMidLow = 120; xoMidHigh = 6000; xoHighCut = 16000;
-  }}
-
-  // Adjust crossover based on room
-  if (lugar.includes("aire libre")) {{
-    xoLowCut = Math.min(xoLowCut + 10, 60); // cut sub-bass more outdoors
-    xoHighCut = 14000; // reduce high extension outdoors
-  }} else if (lugar.includes("Carpa")) {{
-    xoLowCut = Math.min(xoLowCut + 5, 50);
-  }}
+  // Adjust for outdoors
+  if (exterior) {{ idealXoLow = Math.min(idealXoLow + 10, 60); idealXoHigh = Math.max(idealXoHigh - 500, 3000); }}
 
   // EQ recommendation
-  let eqAction = "", eqColor = "#e2e8f0", eqDetail = "";
-  let xoAction = "", xoDetail = "";
-  let rowBg = "rgba(0,0,0,0.15)", rowBorder = "#475569";
+  const freqs = bandId === "bass" ? [50, 80, 200] : bandId === "mid" ? [1000, 2500] : [6000, 10000];
+  let eqFreq = freqs[0];
+  for (const f of freqs) {{ if (Math.abs(f - peakHz) < Math.abs(eqFreq - peakHz)) eqFreq = f; }}
+  const freqLabel = eqFreq >= 1000 ? (eqFreq/1000) + " kHz" : eqFreq + " Hz";
 
-  // Crossover for each band
-  if (bandId === "bass") {{
-    xoAction = "Corte bajo: " + xoLowCut + " Hz | Subir hasta " + xoMidLow + " Hz";
-    xoDetail = "HPF en " + xoLowCut + " Hz, crossover a medios en " + xoMidLow + " Hz";
-  }} else if (bandId === "mid") {{
-    xoAction = "Rango: " + xoMidLow + " Hz – " + formatHz(xoMidHigh);
-    xoDetail = "Pasar bajos a medios en " + xoMidLow + " Hz, cortar agudos en " + formatHz(xoMidHigh);
-  }} else {{
-    xoAction = "Corte alto: " + formatHz(xoHighCut) + " | Desde " + formatHz(xoMidHigh);
-    xoDetail = "Crossover desde medios en " + formatHz(xoMidHigh) + ", LPF en " + formatHz(xoHighCut);
-  }}
+  let eqAction = "", eqColor = "#94a3b8", eqDetail = "", rowBg = "rgba(0,0,0,0.15)", rowBorder = "#475569";
 
   if (bandId === "bass" && exterior) {{
-    eqAction = "⚠️ IGNORAR";
-    eqDetail = "Viento distorsiona graves en exteriores";
-    eqColor = "#f59e0b"; rowBg = "rgba(245,158,11,0.08)"; rowBorder = "#f59e0b";
+    eqAction = "\u26A0 IGNORAR"; eqDetail = "Viento distorsiona graves"; eqColor = "#f59e0b";
+    rowBg = "rgba(245,158,11,0.08)"; rowBorder = "#f59e0b";
   }} else if (level > hiTh) {{
     const dbCut = Math.min(6, Math.max(1, Math.round((level - hiTh) / 3)));
-    const freqs = bandId === "bass" ? [50, 80, 200] : bandId === "mid" ? [1000, 2500] : [6000, 10000];
-    let eqFreq = freqs[0];
-    for (const f of freqs) {{ if (Math.abs(f - peakHz) < Math.abs(eqFreq - peakHz)) eqFreq = f; }}
-    const freqLabel = eqFreq >= 1000 ? (eqFreq/1000) + " kHz" : eqFreq + " Hz";
-    eqAction = "📉 BAJAR " + dbCut + " dB en " + freqLabel;
-    eqDetail = "Pico en " + formatHz(peakHz) + " está fuerte";
+    eqAction = "\uD83D\uDC50 BAJAR " + dbCut + " dB en " + freqLabel;
+    eqDetail = "Pico en " + formatHz(peakHz) + " esta fuerte";
     eqColor = "#f87171"; rowBg = "rgba(239,68,68,0.08)"; rowBorder = "#ef4444";
   }} else if (level < loTh) {{
     const dbBoost = Math.min(6, Math.max(1, Math.round((loTh - level) / 3)));
-    const freqs = bandId === "bass" ? [50, 80, 200] : bandId === "mid" ? [1000, 2500] : [6000, 10000];
-    let eqFreq = freqs[0];
-    for (const f of freqs) {{ if (Math.abs(f - peakHz) < Math.abs(eqFreq - peakHz)) eqFreq = f; }}
-    const freqLabel = eqFreq >= 1000 ? (eqFreq/1000) + " kHz" : eqFreq + " Hz";
-    eqAction = "📈 SUBIR " + dbBoost + " dB en " + freqLabel;
+    eqAction = "\uD83D\uDCC8 SUBIR " + dbBoost + " dB en " + freqLabel;
     eqDetail = "Nivel bajo en " + formatHz(peakHz);
     eqColor = "#4ade80"; rowBg = "rgba(34,197,94,0.08)"; rowBorder = "#22c55e";
   }} else {{
-    eqAction = "✅ OK";
-    eqDetail = "Equilibrado en " + formatHz(peakHz);
-    eqColor = "#94a3b8"; rowBg = "rgba(255,255,255,0.02)"; rowBorder = "#475569";
+    eqAction = "\u2705 OK"; eqDetail = "Equilibrado en " + formatHz(peakHz);
+    eqColor = "#94a3b8";
   }}
 
-  // Brand tip (RCF internally)
-  const tips = {{
-    bass: "RCF: buen punch en graves, puede faltar en exteriores",
-    mid: "RCF: claro en medios, ideal para voces",
-    high: "RCF: buena extension en agudos"
-  }};
+  // Crossover recommendation with detected frequencies
+  let xoAction = "", xoDetail = "";
+  const detectedLow = Math.round(detectedXoLow);
+  const detectedHigh = Math.round(detectedXoHigh);
+  const idealLow = Math.round(idealXoLow);
+  const idealHigh = Math.round(idealXoHigh);
 
-  return {{ eqAction, eqColor, eqDetail, xoAction, xoDetail, rowBg, rowBorder, tip: tips[bandId] || "" }};
+  if (bandId === "bass") {{
+    const diff = detectedLow - idealLow;
+    if (diff > 30) {{
+      xoAction = "\u2B07 Bajar corte a " + idealLow + " Hz";
+      xoDetail = "Detectado: " + detectedLow + " Hz → Ideal: " + idealLow + " Hz. El corte esta alto, los graves se pierden.";
+    }} else if (diff < -30) {{
+      xoAction = "\u2B06 Subir corte a " + idealLow + " Hz";
+      xoDetail = "Detectado: " + detectedLow + " Hz → Ideal: " + idealLow + " Hz. Los graves invaden medios.";
+    }} else {{
+      xoAction = "\u2705 Corte OK en " + detectedLow + " Hz";
+      xoDetail = "HPF " + detectedLow + " Hz (ideal: " + idealLow + " Hz)";
+    }}
+  }} else if (bandId === "mid") {{
+    const diff = detectedLow - idealLow;
+    let lowAdvice = "";
+    if (diff > 30) {{
+      lowAdvice = "Bajar entrada a " + idealLow + " Hz";
+    }} else if (diff < -30) {{
+      lowAdvice = "Subir entrada a " + idealLow + " Hz";
+    }} else {{
+      lowAdvice = "Entrada OK en " + detectedLow + " Hz";
+    }}
+    const diffH = detectedHigh - idealXoHigh;
+    let highAdvice = "";
+    if (diffH > 500) {{
+      highAdvice = "Bajar corte alto a " + formatHz(idealXoHigh);
+    }} else if (diffH < -500) {{
+      highAdvice = "Subir corte alto a " + formatHz(idealXoHigh);
+    }} else {{
+      highAdvice = "Corte alto OK en " + formatHz(detectedHigh);
+    }}
+    xoAction = lowAdvice;
+    xoDetail = "Entrada: " + detectedLow + " Hz | Salida: " + formatHz(detectedHigh) + " (ideal: " + idealLow + " Hz – " + formatHz(idealXoHigh) + ")";
+  }} else {{
+    const diff = detectedHigh - idealXoHigh;
+    if (diff > 500) {{
+      xoAction = "\u2B07 Bajar entrada a " + formatHz(idealXoHigh);
+      xoDetail = "Detectado: " + formatHz(detectedHigh) + " → Ideal: " + formatHz(idealXoHigh) + ". Agudos entran muy tarde.";
+    }} else if (diff < -500) {{
+      xoAction = "\u2B06 Subir entrada a " + formatHz(idealXoHigh);
+      xoDetail = "Detectado: " + formatHz(detectedHigh) + " → Ideal: " + formatHz(idealXoHigh) + ". Agudos invaden medios.";
+    }} else {{
+      xoAction = "\u2705 Entrada OK en " + formatHz(detectedHigh);
+      xoDetail = "Crossover desde " + formatHz(detectedHigh) + " (ideal: " + formatHz(idealXoHigh) + ")";
+    }}
+  }}
+
+  return {{ eqAction, eqColor, eqDetail, xoAction, xoDetail, rowBg, rowBorder }};
 }}
 
 // ── Spectrum ──
@@ -334,8 +397,7 @@ function drawSpectrum(data, sr) {{
   if (!canvas) return;
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
-  const w = rect.width;
-  const h = 120;
+  const w = rect.width; const h = 120;
   canvas.width = w * dpr; canvas.height = h * dpr; canvas.style.height = h + "px";
   const ctx = canvas.getContext("2d"); ctx.scale(dpr, dpr);
   ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(0, 0, w, h);
@@ -361,16 +423,24 @@ function drawSpectrum(data, sr) {{
     ctx.fillRect(x, drawH - barH, barW, barH);
   }}
 
+  // Draw crossover lines
+  const xoLowX = (smoothXo.xoLow.length > 0 ? smoothXo.xoLow[smoothXo.xoLow.length-1] : 80) / maxFreq * w;
+  const xoHighX = (smoothXo.xoHigh.length > 0 ? smoothXo.xoHigh[smoothXo.xoHigh.length-1] : 4000) / maxFreq * w;
+  ctx.setLineDash([6, 4]);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#f59e0b";
+  ctx.beginPath(); ctx.moveTo(xoLowX, 0); ctx.lineTo(xoLowX, drawH - 5); ctx.stroke();
+  ctx.strokeStyle = "#a78bfa";
+  ctx.beginPath(); ctx.moveTo(xoHighX, 0); ctx.lineTo(xoHighX, drawH - 5); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Hz labels
   const hzLabels = [50, 120, 250, 500, 1000, 2000, 4000, 8000];
-  ctx.fillStyle = "rgba(255,255,255,0.35)";
-  ctx.font = "10px Inter, system-ui, sans-serif";
-  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.font = "10px Inter, system-ui, sans-serif"; ctx.textAlign = "center";
   for (const hz of hzLabels) {{
     const x = (hz / maxFreq) * w;
     const label = hz >= 1000 ? (hz/1000) + "k" : hz + "";
     ctx.fillText(label, x, h - 3);
-    ctx.strokeStyle = "rgba(255,255,255,0.06)"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, drawH - 5); ctx.stroke();
   }}
 }}
 
@@ -378,6 +448,12 @@ function loop() {{
   const sr = audioCtx.sampleRate;
   const data = new Float32Array(analyser.frequencyBinCount);
   analyser.getFloatFrequencyData(data);
+
+  // Detect crossover points (energy minimums between bands)
+  const rawXoLow = findCrossover(data, 200, 800, sr);   // Bass↔Mid crossover
+  const rawXoHigh = findCrossover(data, 3000, 6000, sr);  // Mid↔High crossover
+  const xoLow = smoothXo("xoLow", rawXoLow);
+  const xoHigh = smoothXo("xoHigh", rawXoHigh);
 
   drawSpectrum(data, sr);
 
@@ -387,9 +463,9 @@ function loop() {{
     const peakHz = smoothPeakVal(band.id, peakFrequency(data, band.lo, band.hi, sr));
     const pct = Math.min(100, Math.max(0, (level + 100) / 100 * 100));
 
-    // Bar color: use band color normally, yellow/red only when adjusting is needed
+    const rec = getRecommendations(band.id, level, peakHz, xoLow, xoHigh, CTX);
+
     let barColor = band.color;
-    const rec = getRecommendations(band.id, level, peakHz, CTX);
     if (rec.eqColor === "#f87171") barColor = "#ef4444";
     else if (rec.eqColor === "#4ade80") barColor = "#22c55e";
 
@@ -398,7 +474,7 @@ function loop() {{
     document.getElementById("g_" + band.id).style.height = pct + "%";
     document.getElementById("g_" + band.id).style.background = barColor;
     document.getElementById("v_" + band.id).textContent = level.toFixed(1) + " dB";
-    document.getElementById("p_" + band.id).textContent = "⚡ " + formatHz(peakHz);
+    document.getElementById("p_" + band.id).textContent = "\u26A1 " + formatHz(peakHz);
 
     const row = document.getElementById("inst_" + band.id);
     row.style.background = rec.rowBg;
@@ -406,7 +482,6 @@ function loop() {{
     row.style.borderLeftWidth = "4px";
     row.style.borderLeftStyle = "solid";
 
-    // Build row: [BAND] [EQ] [XO]
     const bandNames = {{ bass: "BAJOS", mid: "MEDIOS", high: "BRILLO" }};
     const bandColors = {{ bass: "#ef4444", mid: "#22c55e", high: "#a78bfa" }};
 
@@ -435,11 +510,11 @@ async function startListening() {{
     document.getElementById("meters").style.display = "block";
     document.getElementById("spectrumWrap").style.display = "block";
     document.getElementById("instructions").style.display = "block";
-    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">🔴 Escuchando...</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">\uD83D\uDD34 Escuchando...</span>';
     window.parent.postMessage({{ type: "streamlit:setSize", height: document.body.scrollHeight }}, "*");
     loop();
   }} catch(e) {{
-    document.getElementById("status").innerHTML = '<span style="color:#f87171;">❌ Micrófono: ' + e.message + '</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#f87171;">\u274C Micr\u00f3fono: ' + e.message + '</span>';
   }}
 }}
 
@@ -451,7 +526,7 @@ function stopListening() {{
   const btnStop = document.getElementById("btnStop");
   btnStop.style.display = "none";
   btnStop.classList.remove("listening-active");
-  document.getElementById("status").innerHTML = '⏸️ Detenido.';
+  document.getElementById("status").innerHTML = '\u23F8\uFE0F Detenido.';
   const canvas = document.getElementById("spectrumCanvas");
   if (canvas) {{
     const ctx = canvas.getContext("2d");
@@ -469,4 +544,4 @@ new MutationObserver(notifySize).observe(document.getElementById("ecualizador-pr
 """
 
 import streamlit.components.v1 as components
-components.html(COMPONENT_HTML, height=1100, scrolling=False)
+components.html(COMPONENT_HTML, height=1150, scrolling=False)
