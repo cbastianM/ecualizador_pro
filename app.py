@@ -317,20 +317,20 @@ function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh
   let eqAction = "", eqColor = "#94a3b8", eqDetail = "", rowBg = "rgba(0,0,0,0.15)", rowBorder = "#475569";
 
   if (bandId === "bass" && exterior) {{
-    eqAction = "\u26A0 IGNORAR"; eqDetail = "Viento distorsiona graves"; eqColor = "#f59e0b";
+    eqAction = "⚠️ IGNORAR"; eqDetail = "Viento distorsiona graves"; eqColor = "#f59e0b";
     rowBg = "rgba(245,158,11,0.08)"; rowBorder = "#f59e0b";
   }} else if (level > hiTh) {{
     const dbCut = Math.min(6, Math.max(1, Math.round((level - hiTh) / 3)));
-    eqAction = "\uD83D\uDC50 BAJAR " + dbCut + " dB en " + freqLabel;
+    eqAction = "🔽 BAJAR " + dbCut + " dB en " + freqLabel;
     eqDetail = "Pico en " + formatHz(peakHz) + " esta fuerte";
     eqColor = "#f87171"; rowBg = "rgba(239,68,68,0.08)"; rowBorder = "#ef4444";
   }} else if (level < loTh) {{
     const dbBoost = Math.min(6, Math.max(1, Math.round((loTh - level) / 3)));
-    eqAction = "\uD83D\uDCC8 SUBIR " + dbBoost + " dB en " + freqLabel;
+    eqAction = "🔼 SUBIR " + dbBoost + " dB en " + freqLabel;
     eqDetail = "Nivel bajo en " + formatHz(peakHz);
     eqColor = "#4ade80"; rowBg = "rgba(34,197,94,0.08)"; rowBorder = "#22c55e";
   }} else {{
-    eqAction = "\u2705 OK"; eqDetail = "Equilibrado en " + formatHz(peakHz);
+    eqAction = "✅ OK"; eqDetail = "Equilibrado en " + formatHz(peakHz);
     eqColor = "#94a3b8";
   }}
 
@@ -344,13 +344,13 @@ function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh
   if (bandId === "bass") {{
     const diff = detectedLow - idealLow;
     if (diff > 30) {{
-      xoAction = "\u2B07 Bajar corte a " + idealLow + " Hz";
+      xoAction = "⬇️ Bajar corte a " + idealLow + " Hz";
       xoDetail = "Detectado: " + detectedLow + " Hz → Ideal: " + idealLow + " Hz. El corte esta alto, los graves se pierden.";
     }} else if (diff < -30) {{
-      xoAction = "\u2B06 Subir corte a " + idealLow + " Hz";
+      xoAction = "⬆️ Subir corte a " + idealLow + " Hz";
       xoDetail = "Detectado: " + detectedLow + " Hz → Ideal: " + idealLow + " Hz. Los graves invaden medios.";
     }} else {{
-      xoAction = "\u2705 Corte OK en " + detectedLow + " Hz";
+      xoAction = "✅ Corte OK en " + detectedLow + " Hz";
       xoDetail = "HPF " + detectedLow + " Hz (ideal: " + idealLow + " Hz)";
     }}
   }} else if (bandId === "mid") {{
@@ -377,13 +377,13 @@ function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh
   }} else {{
     const diff = detectedHigh - idealXoHigh;
     if (diff > 500) {{
-      xoAction = "\u2B07 Bajar entrada a " + formatHz(idealXoHigh);
+      xoAction = "⬇️ Bajar entrada a " + formatHz(idealXoHigh);
       xoDetail = "Detectado: " + formatHz(detectedHigh) + " → Ideal: " + formatHz(idealXoHigh) + ". Agudos entran muy tarde.";
     }} else if (diff < -500) {{
-      xoAction = "\u2B06 Subir entrada a " + formatHz(idealXoHigh);
+      xoAction = "⬆️ Subir entrada a " + formatHz(idealXoHigh);
       xoDetail = "Detectado: " + formatHz(detectedHigh) + " → Ideal: " + formatHz(idealXoHigh) + ". Agudos invaden medios.";
     }} else {{
-      xoAction = "\u2705 Entrada OK en " + formatHz(detectedHigh);
+      xoAction = "✅ Entrada OK en " + formatHz(detectedHigh);
       xoDetail = "Crossover desde " + formatHz(detectedHigh) + " (ideal: " + formatHz(idealXoHigh) + ")";
     }}
   }}
@@ -474,7 +474,7 @@ function loop() {{
     document.getElementById("g_" + band.id).style.height = pct + "%";
     document.getElementById("g_" + band.id).style.background = barColor;
     document.getElementById("v_" + band.id).textContent = level.toFixed(1) + " dB";
-    document.getElementById("p_" + band.id).textContent = "\u26A1 " + formatHz(peakHz);
+    document.getElementById("p_" + band.id).textContent = "⚡ " + formatHz(peakHz);
 
     const row = document.getElementById("inst_" + band.id);
     row.style.background = rec.rowBg;
@@ -510,11 +510,11 @@ async function startListening() {{
     document.getElementById("meters").style.display = "block";
     document.getElementById("spectrumWrap").style.display = "block";
     document.getElementById("instructions").style.display = "block";
-    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">\uD83D\uDD34 Escuchando...</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">🔴 Escuchando...</span>';
     window.parent.postMessage({{ type: "streamlit:setSize", height: document.body.scrollHeight }}, "*");
     loop();
   }} catch(e) {{
-    document.getElementById("status").innerHTML = '<span style="color:#f87171;">\u274C Micr\u00f3fono: ' + e.message + '</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#f87171;">❌ Micrófono: ' + e.message + '</span>';
   }}
 }}
 
@@ -526,7 +526,7 @@ function stopListening() {{
   const btnStop = document.getElementById("btnStop");
   btnStop.style.display = "none";
   btnStop.classList.remove("listening-active");
-  document.getElementById("status").innerHTML = '\u23F8\uFE0F Detenido.';
+  document.getElementById("status").innerHTML = '⏸️ Detenido.';
   const canvas = document.getElementById("spectrumCanvas");
   if (canvas) {{
     const ctx = canvas.getContext("2d");
