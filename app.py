@@ -74,18 +74,18 @@ st.divider()
 st.subheader("🎤 Escuchá en tiempo real")
 st.caption("Activá el micrófono, poné la música a volumen de evento y el afinador te dirá qué ajustar.")
 
-ctx = _json.dumps({"lugar": lugar, "genero": genero})
+ctx = _json.dumps({"lugar": lugar, "genero": genero}, ensure_ascii=False)
 
 COMPONENT_HTML = f"""
 <div id="ecualizador-pro" style="font-family:'Inter',system-ui,sans-serif; overflow:hidden;">
 
   <div id="btnContainer" style="text-align:center; margin-bottom:20px;">
-    <button id="btnStart" onclick="startListening()" class="btn-start">🎙️ Activar micrófono</button>
-    <button id="btnStop" onclick="stopListening()" class="btn-stop">⏹ Detener</button>
+    <button id="btnStart" onclick="startListening()" class="btn-start">MIC Activar</button>
+    <button id="btnStop" onclick="stopListening()" class="btn-stop">STOP Detener</button>
   </div>
 
   <div id="spectrumWrap" style="display:none; margin-bottom:20px; background:rgba(0,0,0,0.3); border-radius:14px; padding:14px; border:1px solid rgba(255,255,255,0.06);">
-    <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:6px; letter-spacing:1px; text-transform:uppercase;">📊 Espectro de frecuencias</div>
+    <div style="font-size:11px; font-weight:600; color:#64748b; margin-bottom:6px; letter-spacing:1px; text-transform:uppercase;">ESPECTRO DE FRECUENCIAS</div>
     <canvas id="spectrumCanvas" style="width:100%; height:120px; border-radius:8px; display:block;"></canvas>
   </div>
 
@@ -95,21 +95,21 @@ COMPONENT_HTML = f"""
         <div class="m-label"><span class="m-dot" style="background:#ef4444;"></span>BAJOS</div>
         <div class="m-bar-wrap"><div class="m-bar" id="b_bass"></div><div class="m-bar-glow" id="g_bass"></div></div>
         <div class="m-val" id="v_bass">-- dB</div>
-        <div class="m-peak" id="p_bass">⚡ --</div>
+        <div class="m-peak" id="p_bass">Pico: --</div>
         <div class="m-hz">20 – 500 Hz</div>
       </div>
       <div id="m_mid" class="meter-card">
         <div class="m-label"><span class="m-dot" style="background:#22c55e;"></span>MEDIOS</div>
         <div class="m-bar-wrap"><div class="m-bar" id="b_mid"></div><div class="m-bar-glow" id="g_mid"></div></div>
         <div class="m-val" id="v_mid">-- dB</div>
-        <div class="m-peak" id="p_mid">⚡ --</div>
+        <div class="m-peak" id="p_mid">Pico: --</div>
         <div class="m-hz">500 Hz – 4K Hz</div>
       </div>
       <div id="m_high" class="meter-card">
         <div class="m-label"><span class="m-dot" style="background:#a78bfa;"></span>BRILLO</div>
         <div class="m-bar-wrap"><div class="m-bar" id="b_high"></div><div class="m-bar-glow" id="g_high"></div></div>
         <div class="m-val" id="v_high">-- dB</div>
-        <div class="m-peak" id="p_high">⚡ --</div>
+        <div class="m-peak" id="p_high">Pico: --</div>
         <div class="m-hz">4K – 16K Hz</div>
       </div>
     </div>
@@ -317,7 +317,7 @@ function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh
   let eqAction = "", eqColor = "#94a3b8", eqDetail = "", rowBg = "rgba(0,0,0,0.15)", rowBorder = "#475569";
 
   if (bandId === "bass" && exterior) {{
-    eqAction = "⚠️ IGNORAR"; eqDetail = "Viento distorsiona graves"; eqColor = "#f59e0b";
+    eqAction = "! IGNORAR"; eqDetail = "Viento distorsiona graves"; eqColor = "#f59e0b";
     rowBg = "rgba(245,158,11,0.08)"; rowBorder = "#f59e0b";
   }} else if (level > hiTh) {{
     const dbCut = Math.min(6, Math.max(1, Math.round((level - hiTh) / 3)));
@@ -330,7 +330,7 @@ function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh
     eqDetail = "Nivel bajo en " + formatHz(peakHz);
     eqColor = "#4ade80"; rowBg = "rgba(34,197,94,0.08)"; rowBorder = "#22c55e";
   }} else {{
-    eqAction = "✅ OK"; eqDetail = "Equilibrado en " + formatHz(peakHz);
+    eqAction = "OK"; eqDetail = "Equilibrado en " + formatHz(peakHz);
     eqColor = "#94a3b8";
   }}
 
@@ -350,7 +350,7 @@ function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh
       xoAction = "^ Subir corte a " + idealLow + " Hz";
       xoDetail = "Detectado: " + detectedLow + " Hz → Ideal: " + idealLow + " Hz. Los graves invaden medios.";
     }} else {{
-      xoAction = "✅ Corte OK en " + detectedLow + " Hz";
+      xoAction = "OK Corte en " + detectedLow + " Hz";
       xoDetail = "HPF " + detectedLow + " Hz (ideal: " + idealLow + " Hz)";
     }}
   }} else if (bandId === "mid") {{
@@ -383,7 +383,7 @@ function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh
       xoAction = "^ Subir entrada a " + formatHz(idealXoHigh);
       xoDetail = "Detectado: " + formatHz(detectedHigh) + " → Ideal: " + formatHz(idealXoHigh) + ". Agudos invaden medios.";
     }} else {{
-      xoAction = "✅ Entrada OK en " + formatHz(detectedHigh);
+      xoAction = "OK Entrada en " + formatHz(detectedHigh);
       xoDetail = "Crossover desde " + formatHz(detectedHigh) + " (ideal: " + formatHz(idealXoHigh) + ")";
     }}
   }}
@@ -474,7 +474,7 @@ function loop() {{
     document.getElementById("g_" + band.id).style.height = pct + "%";
     document.getElementById("g_" + band.id).style.background = barColor;
     document.getElementById("v_" + band.id).textContent = level.toFixed(1) + " dB";
-    document.getElementById("p_" + band.id).textContent = "⚡ " + formatHz(peakHz);
+    document.getElementById("p_" + band.id).textContent = "Pico: " + formatHz(peakHz);
 
     const row = document.getElementById("inst_" + band.id);
     row.style.background = rec.rowBg;
