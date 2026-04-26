@@ -30,9 +30,7 @@ st.markdown("""
     .stSubheader { color: #f1f5f9 !important; font-weight: 700 !important; }
     .stCaption { color: #64748b !important; }
     section[data-testid="stSidebar"] { display: none; }
-    /* Ocultar scrollbar del iframe del componente */
     .stHtml iframe { border: none !important; }
-    /* Ocultar scrollbar horizontal y dejar solo la vertical de la página */
     .stHtml { overflow-x: hidden !important; }
     @media (max-width: 768px) { .stColumns { flex-direction: column !important; } .stColumns > div { width: 100% !important; } }
 </style>
@@ -101,32 +99,25 @@ COMPONENT_HTML = f"""
 
   <div id="meters" style="display:none; margin-bottom:24px;">
     <div class="meters-grid">
-      <div id="m_sub" class="meter-card">
-        <div class="m-label"><span class="m-dot" style="background:#ef4444;"></span>SUB-GRAVES</div>
-        <div class="m-bar-wrap"><div class="m-bar" id="b_sub"></div><div class="m-bar-glow" id="g_sub"></div></div>
-        <div class="m-val" id="v_sub">-- dB</div>
-        <div class="m-peak" id="p_sub">Pico: -- Hz</div>
-        <div class="m-hz">20 – 120 Hz</div>
-      </div>
-      <div id="m_low" class="meter-card">
-        <div class="m-label"><span class="m-dot" style="background:#f59e0b;"></span>MEDIOS-BAJOS</div>
-        <div class="m-bar-wrap"><div class="m-bar" id="b_low"></div><div class="m-bar-glow" id="g_low"></div></div>
-        <div class="m-val" id="v_low">-- dB</div>
-        <div class="m-peak" id="p_low">Pico: -- Hz</div>
-        <div class="m-hz">120 – 500 Hz</div>
+      <div id="m_bass" class="meter-card">
+        <div class="m-label"><span class="m-dot" style="background:#ef4444;"></span>BAJOS</div>
+        <div class="m-bar-wrap"><div class="m-bar" id="b_bass"></div><div class="m-bar-glow" id="g_bass"></div></div>
+        <div class="m-val" id="v_bass">-- dB</div>
+        <div class="m-peak" id="p_bass">Pico: --</div>
+        <div class="m-hz">20 – 500 Hz</div>
       </div>
       <div id="m_mid" class="meter-card">
         <div class="m-label"><span class="m-dot" style="background:#22c55e;"></span>MEDIOS</div>
         <div class="m-bar-wrap"><div class="m-bar" id="b_mid"></div><div class="m-bar-glow" id="g_mid"></div></div>
         <div class="m-val" id="v_mid">-- dB</div>
-        <div class="m-peak" id="p_mid">Pico: -- Hz</div>
+        <div class="m-peak" id="p_mid">Pico: --</div>
         <div class="m-hz">500 Hz – 4K Hz</div>
       </div>
       <div id="m_high" class="meter-card">
-        <div class="m-label"><span class="m-dot" style="background:#a78bfa;"></span>AGUDOS</div>
+        <div class="m-label"><span class="m-dot" style="background:#a78bfa;"></span>BRILLO</div>
         <div class="m-bar-wrap"><div class="m-bar" id="b_high"></div><div class="m-bar-glow" id="g_high"></div></div>
         <div class="m-val" id="v_high">-- dB</div>
-        <div class="m-peak" id="p_high">Pico: -- Hz</div>
+        <div class="m-peak" id="p_high">Pico: --</div>
         <div class="m-hz">4K – 16K Hz</div>
       </div>
     </div>
@@ -134,10 +125,9 @@ COMPONENT_HTML = f"""
 
   <div id="instructions" style="display:none;">
     <div style="font-size:12px; font-weight:700; color:#94a3b8; margin-bottom:12px; letter-spacing:1px; text-transform:uppercase;">🎛️ Instrucciones de ecualización</div>
-    <div id="inst_sub"  class="inst-row"><div class="inst-band" style="color:#ef4444;">SUB-GRAVES</div><div class="inst-text" id="inst_sub_text">—</div></div>
-    <div id="inst_low"  class="inst-row"><div class="inst-band" style="color:#f59e0b;">MEDIOS-BAJOS</div><div class="inst-text" id="inst_low_text">—</div></div>
+    <div id="inst_bass" class="inst-row"><div class="inst-band" style="color:#ef4444;">BAJOS</div><div class="inst-text" id="inst_bass_text">—</div></div>
     <div id="inst_mid"  class="inst-row"><div class="inst-band" style="color:#22c55e;">MEDIOS</div><div class="inst-text" id="inst_mid_text">—</div></div>
-    <div id="inst_high" class="inst-row"><div class="inst-band" style="color:#a78bfa;">AGUDOS</div><div class="inst-text" id="inst_high_text">—</div></div>
+    <div id="inst_high" class="inst-row"><div class="inst-band" style="color:#a78bfa;">BRILLO</div><div class="inst-text" id="inst_high_text">—</div></div>
   </div>
 
   <div id="status" style="text-align:center; font-size:13px; color:#64748b; margin-top:16px;">⏳ Listo para escuchar...</div>
@@ -155,10 +145,10 @@ COMPONENT_HTML = f"""
     cursor: pointer; box-shadow: 0 4px 20px rgba(220,38,38,0.4); margin-left: 12px; transition: all .3s;
   }}
   .meters-grid {{
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
   }}
-  @media (max-width: 600px) {{
-    .meters-grid {{ grid-template-columns: repeat(2, 1fr); gap: 10px; }}
+  @media (max-width: 480px) {{
+    .meters-grid {{ grid-template-columns: 1fr; gap: 10px; }}
   }}
   .meter-card {{
     background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
@@ -166,7 +156,7 @@ COMPONENT_HTML = f"""
     backdrop-filter: blur(10px); transition: border-color .4s, box-shadow .4s;
   }}
   .meter-card:hover {{ border-color: rgba(255,255,255,0.15); box-shadow: 0 0 30px rgba(59,130,246,0.08); }}
-  .m-label {{ font-size: 10px; font-weight: 700; color: #94a3b8; margin-bottom: 8px; letter-spacing: 1.2px; display: flex; align-items: center; justify-content: center; gap: 6px; }}
+  .m-label {{ font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 8px; letter-spacing: 1.2px; display: flex; align-items: center; justify-content: center; gap: 6px; }}
   .m-dot {{ width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }}
   .m-bar-wrap {{ background: rgba(0,0,0,0.4); border-radius: 8px; height: 100px; position: relative; overflow: hidden; }}
   .m-bar {{ position: absolute; bottom: 0; width: 100%; height: 0%; border-radius: 8px; transition: height .12s ease-out, background .4s; z-index: 2; }}
@@ -175,20 +165,23 @@ COMPONENT_HTML = f"""
   .m-peak {{ font-size: 12px; font-weight: 600; color: #60a5fa; margin-top: 2px; }}
   .m-hz {{ font-size: 9px; color: #475569; margin-top: 2px; letter-spacing: .5px; }}
   .inst-row {{
-    padding: 14px 16px; border-radius: 10px; margin-bottom: 10px;
+    padding: 12px 14px; border-radius: 10px; margin-bottom: 8px;
     border-left: 4px solid #475569; background: rgba(0,0,0,0.25);
     transition: all .35s; overflow-wrap: break-word; word-break: break-word;
   }}
-  .inst-band {{ font-size: 10px; font-weight: 700; letter-spacing: 1.5px; margin-bottom: 4px; }}
-  .inst-text {{ font-size: 15px; font-weight: 600; line-height: 1.5; overflow-wrap: break-word; word-break: break-word; }}
+  .inst-band {{ font-size: 10px; font-weight: 700; letter-spacing: 1.5px; margin-bottom: 2px; }}
+  .inst-text {{ font-size: 14px; font-weight: 600; line-height: 1.4; overflow-wrap: break-word; word-break: break-word; }}
   @media (max-width: 480px) {{
-    .btn-start, .btn-stop {{ width: 100%; margin-left: 0 !important; }}
+    .btn-start, .btn-stop {{ width: 100%; margin-left: 0 !important; font-size: 15px; }}
     .btn-stop {{ margin-top: 10px; }}
     #btnContainer {{ display: flex; flex-direction: column; align-items: center; gap: 10px; }}
+    .inst-row {{ padding: 10px 12px; }}
+    .inst-band {{ font-size: 9px; }}
+    .inst-text {{ font-size: 13px; }}
   }}
   @keyframes pulse {{
     0%, 100% {{ box-shadow: 0 0 0 0 rgba(220,38,38,0.6); }}
-    50% {{ box-shadow: 0 0 0 12px rgba(220,38,38,0); }}
+    50%      {{ box-shadow: 0 0 0 12px rgba(220,38,38,0); }}
   }}
   .listening-active {{ animation: pulse 1.8s infinite; }}
 </style>
@@ -199,11 +192,11 @@ const CTX = {ctx};
 let audioCtx, analyser, source, stream, raf;
 const FFT = 4096;
 
+// 3 bands: Bajos, Medios, Brillo
 const BANDS = [
-  {{ id:"sub",  label:"SUB-GRAVES",   lo:20,   hi:120,  color:"#ef4444" }},
-  {{ id:"low",  label:"MEDIOS-BAJOS", lo:120,  hi:500,  color:"#f59e0b" }},
-  {{ id:"mid",  label:"MEDIOS",       lo:500,  hi:4000, color:"#22c55e" }},
-  {{ id:"high", label:"AGUDOS",       lo:4000, hi:16000,color:"#a78bfa" }}
+  {{ id:"bass", label:"BAJOS",   lo:20,   hi:500,  color:"#ef4444" }},
+  {{ id:"mid",  label:"MEDIOS",  lo:500,  hi:4000, color:"#22c55e" }},
+  {{ id:"high", label:"BRILLO",  lo:4000, hi:16000,color:"#a78bfa" }},
 ];
 
 function freqToIndex(f, sampleRate) {{
@@ -218,7 +211,6 @@ function bandEnergy(data, lo, hi, sr) {{
   return count > 0 ? sum / count : -100;
 }}
 
-// ── Find peak frequency in a band ──
 function peakFrequency(data, lo, hi, sr) {{
   const iLo = freqToIndex(lo, sr);
   const iHi = freqToIndex(hi, sr);
@@ -230,14 +222,13 @@ function peakFrequency(data, lo, hi, sr) {{
   return maxIdx * hzPerBin;
 }}
 
-// ── Format Hz nicely ──
 function formatHz(hz) {{
   if (hz >= 1000) return (hz / 1000).toFixed(1) + " kHz";
   return Math.round(hz) + " Hz";
 }}
 
-const smooth = {{sub:[], low:[], mid:[], high:[]}};
-const smoothPeak = {{sub:[], low:[], mid:[], high:[]}};
+const smooth = {{bass:[], mid:[], high:[]}};
+const smoothPeak = {{bass:[], mid:[], high:[]}};
 const SMOOTH_N = 8;
 
 function smoothVal(key, val) {{
@@ -252,37 +243,33 @@ function smoothPeakVal(key, val) {{
   return smoothPeak[key].reduce((a,b) => a+b, 0) / smoothPeak[key].length;
 }}
 
-// ── Brand profiles ──
+// Wider thresholds so OK is easier to reach
 const BRAND_PROFILES = {{
   "JBL": {{
-    sub: {{ hiTh: 7, loTh: -5 }}, low: {{ hiTh: 5, loTh: -4 }}, mid: {{ hiTh: 4, loTh: -4 }}, high: {{ hiTh: 5, loTh: -4 }},
-    subNote:  "JBL tiene bass reflex potente — si suena retumbante puede ser exceso real",
-    lowNote:  "Los medios-bajos JBL pueden embarrar si el cuarto es chico",
+    bass: {{ hiTh: 9, loTh: -9 }}, mid: {{ hiTh: 7, loTh: -7 }}, high: {{ hiTh: 8, loTh: -8 }},
+    bassNote: "JBL tiene bass reflex potente — si suena retumbante, baja graves",
     midNote:  "La curva JBL+ tiene presencia media alta — cuidado con lo nasal",
-    highNote: "JBL puede subir +10 dB en 10 kHz — suena muy brillante en interiores",
+    highNote: "JBL puede subir +10 dB en 10 kHz — suena brillante en interiores",
   }},
   "Yamaha": {{
-    sub: {{ hiTh: 6, loTh: -6 }}, low: {{ hiTh: 6, loTh: -5 }}, mid: {{ hiTh: 4, loTh: -4 }}, high: {{ hiTh: 5, loTh: -5 }},
-    subNote:  "Yamaha DXR tiene buen sub pero no es tan profundo — puede faltar pegada",
-    lowNote:  "Los DSR/DXR tienden a hinchar medios-bajos a alto volumen",
+    bass: {{ hiTh: 9, loTh: -9 }}, mid: {{ hiTh: 7, loTh: -7 }}, high: {{ hiTh: 8, loTh: -8 }},
+    bassNote: "Yamaha DXR tiene buen sub pero no es tan profundo — puede faltar pegada",
     midNote:  "Yamaha es fiel en medios — si suena nasal probablemente es la sala",
     highNote: "Yamaha tiene tweeter de titanio — los agudos picados se sienten rápido",
   }},
   "RCF": {{
-    sub: {{ hiTh: 6, loTh: -6 }}, low: {{ hiTh: 5, loTh: -5 }}, mid: {{ hiTh: 4, loTh: -4 }}, high: {{ hiTh: 5, loTh: -5 }},
-    subNote:  "RCF tiene buen punch en sub pero puede quedarse corto en exteriores",
-    lowNote:  "Los medios-bajos RCF son limpios — si suena enlodenado, baja",
+    bass: {{ hiTh: 9, loTh: -9 }}, mid: {{ hiTh: 7, loTh: -7 }}, high: {{ hiTh: 8, loTh: -8 }},
+    bassNote: "RCF tiene buen punch en graves pero puede quedarse corto en exteriores",
     midNote:  "RCF es claro en medios — ideal para voces",
     highNote: "RCF tiene buena extension en agudos — si falta brillo revisa posicion",
   }},
 }};
 
-// ── Target EQ center frequencies per band (for practical EQ advice) ──
+// EQ target frequencies per band
 const EQ_FREQ = {{
-  sub:  [50, 80],
-  low:  [200, 315],
+  bass: [50, 80, 200, 315],
   mid:  [1000, 2500],
-  high: [6000, 10000, 16000]
+  high: [6000, 10000]
 }};
 
 function getBrandProfile(marca) {{
@@ -296,13 +283,12 @@ function getInstruction(bandId, dbRelative, peakHz, context) {{
   const exterior = lugar.includes("aire libre") || lugar.includes("Carpa");
 
   const profile = getBrandProfile(marca);
-  const thresh = profile[bandId] || profile.sub;
+  const thresh = profile[bandId] || profile.bass;
   const bandTip = profile[bandId + "Note"] || "";
 
-  // Pick best EQ frequency suggestion based on peak and available EQ points
+  // Pick best EQ frequency based on peak
   const freqs = EQ_FREQ[bandId] || [1000];
-  let eqFreq = freqs[0];
-  let minDist = Infinity;
+  let eqFreq = freqs[0], minDist = Infinity;
   for (const f of freqs) {{
     const dist = Math.abs(f - peakHz);
     if (dist < minDist) {{ minDist = dist; eqFreq = f; }}
@@ -310,36 +296,34 @@ function getInstruction(bandId, dbRelative, peakHz, context) {{
   const freqLabel = eqFreq >= 1000 ? (eqFreq/1000) + " kHz" : eqFreq + " Hz";
 
   let genreTip = "";
-  if (genero === "Salsa") genreTip = "En salsa los graves y medios-bajos son clave para la percusion.";
+  if (genero === "Salsa") genreTip = "En salsa los graves y la percusion son clave.";
   else if (genero === "Rock") genreTip = "En rock los medios y graves dan peso a las guitarras.";
   else if (genero === "Clásica") genreTip = "En clásica los medios y agudos deben ser claros y naturales.";
 
   let status = "ok", action = "", detail = "";
   let color = "#e2e8f0", bg = "rgba(255,255,255,0.04)", border = "#475569";
 
-  // Detail messages per band referencing the peak frequency
   const peakLabel = formatHz(peakHz);
   const details = {{
-    sub:  {{ down: "El pico en " + peakLabel + " está muy fuerte — baja ese rango para limpiar el sub", up: "Falta cuerpo en " + peakLabel + " — sube el sub para darle pegada", ok: "Sub equilibrado con pico en " + peakLabel }},
-    low:  {{ down: "El pico en " + peakLabel + " está tapando las voces — baja medios-bajos", up: "Falta calidez en " + peakLabel + " — sube medios-bajos para llenar el sonido", ok: "Medios-bajos equilibrados con pico en " + peakLabel }},
-    mid:  {{ down: "El pico en " + peakLabel + " hace las voces nasales o metálicas — baja medios", up: "Voces poco claras, falta presencia en " + peakLabel + " — sube medios", ok: "Medios equilibrados con pico en " + peakLabel }},
-    high: {{ down: "El pico en " + peakLabel + " suena muy brillante o chillón — baja agudos", up: "Falta brillo y presencia en " + peakLabel + " — sube agudos para definir", ok: "Agudos equilibrados con pico en " + peakLabel }},
+    bass: {{ down: "Graves fuertes en " + peakLabel + " — baja ese rango para limpiar", up: "Falta cuerpo en " + peakLabel + " — sube graves para darle pegada", ok: "Bajos equilibrados con pico en " + peakLabel }},
+    mid:  {{ down: "El pico en " + peakLabel + " hace las voces nasales — baja medios", up: "Voces poco claras, falta presencia en " + peakLabel + " — sube medios", ok: "Medios equilibrados con pico en " + peakLabel }},
+    high: {{ down: "El pico en " + peakLabel + " suena brillante — baja agudos para suavizar", up: "Falta brillo en " + peakLabel + " — sube agudos para definir", ok: "Brillo equilibrado con pico en " + peakLabel }},
   }};
 
-  if (bandId === "sub" && exterior) {{
-    status = "warn"; action = "IGNORAR lectura";
+  if (bandId === "bass" && exterior) {{
+    status = "warn"; action = "⚠️ IGNORAR lectura";
     detail = "En exteriores el viento distorsiona los graves — no ajustes basándote en esto";
     color="#f59e0b"; bg="rgba(245,158,11,0.12)"; border="#f59e0b";
   }} else if (dbRelative > thresh.hiTh) {{
     status = "down";
     const dbCut = Math.min(6, Math.max(1, Math.round((dbRelative - thresh.hiTh) / 2)));
-    action = "📉 EQ: BAJAR " + dbCut + " dB en " + freqLabel;
+    action = "📉 BAJAR " + dbCut + " dB en " + freqLabel;
     detail = details[bandId].down + (bandTip ? " · " + bandTip : "");
     color="#f87171"; bg="rgba(239,68,68,0.12)"; border="#ef4444";
   }} else if (dbRelative < thresh.loTh) {{
     status = "up";
     const dbBoost = Math.min(6, Math.max(1, Math.round((thresh.loTh - dbRelative) / 2)));
-    action = "📈 EQ: SUBIR " + dbBoost + " dB en " + freqLabel;
+    action = "📈 SUBIR " + dbBoost + " dB en " + freqLabel;
     detail = details[bandId].up + (bandTip ? " · " + bandTip : "");
     color="#4ade80"; bg="rgba(34,197,94,0.12)"; border="#22c55e";
   }} else {{
@@ -354,7 +338,7 @@ function getInstruction(bandId, dbRelative, peakHz, context) {{
   return {{ action, detail, note, color, bg, border, status }};
 }}
 
-// ── Canvas spectrum with Hz labels ──
+// Spectrum colors per 3-band regions
 function drawSpectrum(data, sr) {{
   const canvas = document.getElementById("spectrumCanvas");
   if (!canvas) return;
@@ -376,7 +360,6 @@ function drawSpectrum(data, sr) {{
   const usable = Math.min(maxIdx, data.length);
   const barW = Math.max(1, (w / usable) * 1.5);
 
-  // Draw bars
   for (let i = 1; i < usable; i++) {{
     const val = data[i];
     const norm = Math.max(0, Math.min(1, (val + 100) / 100));
@@ -384,16 +367,14 @@ function drawSpectrum(data, sr) {{
     const x = (i / usable) * w;
     const freq = (i / usable) * maxFreq;
     let r, g, b;
-    if (freq < 120)        {{ r=239; g=68;  b=68;  }}
-    else if (freq < 500)   {{ r=245; g=158; b=11;  }}
-    else if (freq < 4000)  {{ r=34;  g=197; b=94;  }}
-    else                   {{ r=167; g=139; b=250; }}
+    if (freq < 500)       {{ r=239; g=68;  b=68;  }}
+    else if (freq < 4000) {{ r=34;  g=197; b=94;  }}
+    else                  {{ r=167; g=139; b=250; }}
     const alpha = 0.4 + norm * 0.6;
     ctx.fillStyle = `rgba(${{r}},${{g}},${{b}},${{alpha}})`;
     ctx.fillRect(x, (h - 20) - barH, barW, barH);
   }}
 
-  // Hz labels
   const hzLabels = [50, 120, 250, 500, 1000, 2000, 4000, 8000];
   ctx.fillStyle = "rgba(255,255,255,0.35)";
   ctx.font = "10px Inter, system-ui, sans-serif";
@@ -410,7 +391,6 @@ function drawSpectrum(data, sr) {{
     ctx.stroke();
   }}
 
-  // Reference line
   ctx.strokeStyle = "rgba(255,255,255,0.08)";
   ctx.setLineDash([4, 8]);
   ctx.beginPath();
@@ -419,14 +399,12 @@ function drawSpectrum(data, sr) {{
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // "Hz" label
   ctx.fillStyle = "rgba(255,255,255,0.2)";
   ctx.font = "9px Inter, system-ui, sans-serif";
   ctx.textAlign = "left";
   ctx.fillText("Hz", w - 18, h - 4);
 }}
 
-// ── Main loop ──
 function loop() {{
   const sr = audioCtx.sampleRate;
   const data = new Float32Array(analyser.frequencyBinCount);
@@ -443,15 +421,15 @@ function loop() {{
 
     let barColor = band.color;
     const absR = Math.abs(rel);
-    if (absR > 6)      barColor = "#ef4444";
-    else if (absR > 3) barColor = "#f59e0b";
+    if (absR > 8)      barColor = "#ef4444";
+    else if (absR > 4) barColor = "#f59e0b";
 
     document.getElementById("b_" + band.id).style.height = pct + "%";
     document.getElementById("b_" + band.id).style.background = barColor;
     document.getElementById("g_" + band.id).style.height = pct + "%";
     document.getElementById("g_" + band.id).style.background = barColor;
     document.getElementById("v_" + band.id).textContent = (rel >= 0 ? "+" : "") + rel.toFixed(1) + " dB";
-    document.getElementById("p_" + band.id).textContent = "⚡ Pico: " + formatHz(peakHz);
+    document.getElementById("p_" + band.id).textContent = "\u26A1 Pico: " + formatHz(peakHz);
 
     const inst = getInstruction(band.id, rel, peakHz, CTX);
     const row = document.getElementById("inst_" + band.id);
@@ -485,12 +463,12 @@ async function startListening() {{
     document.getElementById("meters").style.display = "block";
     document.getElementById("spectrumWrap").style.display = "block";
     document.getElementById("instructions").style.display = "block";
-    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">🔴 Escuchando en tiempo real...</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">\uD83D\uDD34 Escuchando en tiempo real...</span>';
 
     window.parent.postMessage({{ type: "streamlit:setSize", height: document.body.scrollHeight }}, "*");
     loop();
   }} catch(e) {{
-    document.getElementById("status").innerHTML = '<span style="color:#f87171;">❌ No se pudo acceder al micrófono: ' + e.message + '</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#f87171;">\u274C No se pudo acceder al micr\u00f3fono: ' + e.message + '</span>';
   }}
 }}
 
@@ -503,7 +481,7 @@ function stopListening() {{
   const btnStop = document.getElementById("btnStop");
   btnStop.style.display = "none";
   btnStop.classList.remove("listening-active");
-  document.getElementById("status").innerHTML = '⏸️ Detenido. Volvé a activar para seguir afinando.';
+  document.getElementById("status").innerHTML = '\u23F8\uFE0F Detenido. Volv\u00E9 a activar para seguir afinando.';
 
   const canvas = document.getElementById("spectrumCanvas");
   if (canvas) {{
