@@ -266,7 +266,7 @@ function formatHz(hz) {{
 
 const smooth = {{bass:[], mid:[], high:[]}};
 const smoothPeak = {{bass:[], mid:[], high:[]}};
-const smoothXo = {{xoLow:[], xoHigh:[]}};
+const smoothXoData = {{xoLow:[], xoHigh:[]}};
 const SMOOTH_N = 8;
 
 function smoothVal(key, val) {{
@@ -282,9 +282,9 @@ function smoothPeakVal(key, val) {{
 }}
 
 function smoothXo(key, val) {{
-  smoothXo[key].push(val);
-  if (smoothXo[key].length > 12) smoothXo[key].shift();
-  return smoothXo[key].reduce((a,b) => a+b, 0) / smoothXo[key].length;
+  smoothXoData[key].push(val);
+  if (smoothXoData[key].length > 12) smoothXoData[key].shift();
+  return smoothXoData[key].reduce((a,b) => a+b, 0) / smoothXoData[key].length;
 }}
 
 // ── Recommendations with detected crossover ──
@@ -424,8 +424,8 @@ function drawSpectrum(data, sr) {{
   }}
 
   // Draw crossover lines
-  const xoLowX = (smoothXo.xoLow.length > 0 ? smoothXo.xoLow[smoothXo.xoLow.length-1] : 80) / maxFreq * w;
-  const xoHighX = (smoothXo.xoHigh.length > 0 ? smoothXo.xoHigh[smoothXo.xoHigh.length-1] : 4000) / maxFreq * w;
+  const xoLowX = (smoothXoData.xoLow.length > 0 ? smoothXoData.xoLow[smoothXoData.xoLow.length-1] : 80) / maxFreq * w;
+  const xoHighX = (smoothXoData.xoHigh.length > 0 ? smoothXoData.xoHigh[smoothXoData.xoHigh.length-1] : 4000) / maxFreq * w;
   ctx.setLineDash([6, 4]);
   ctx.lineWidth = 2;
   ctx.strokeStyle = "#f59e0b";
@@ -514,7 +514,7 @@ async function startListening() {{
     window.parent.postMessage({{ type: "streamlit:setSize", height: document.body.scrollHeight }}, "*");
     loop();
   }} catch(e) {{
-    document.getElementById("status").innerHTML = '<span style="color:#f87171;">❌ Micrófono: ' + e.message + '</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#f87171;">X Micrófono: ' + e.message + '</span>';
   }}
 }}
 
@@ -526,7 +526,7 @@ function stopListening() {{
   const btnStop = document.getElementById("btnStop");
   btnStop.style.display = "none";
   btnStop.classList.remove("listening-active");
-  document.getElementById("status").innerHTML = '⏸️ Detenido.';
+    document.getElementById("status").innerHTML = '|| Detenido.';
   const canvas = document.getElementById("spectrumCanvas");
   if (canvas) {{
     const ctx = canvas.getContext("2d");
