@@ -1,12 +1,43 @@
 import streamlit as st
 import json as _json
+import base64
 
 st.set_page_config(
     page_title="Ecualizador Pro",
     page_icon="🎛️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
+
+# Sidebar - Modo de entrada
+with st.sidebar:
+    st.header("🔧 Modo de entrada")
+    
+    modo_entrada = st.radio(
+        "Seleccionar fuente de audio:",
+        ["Micrófono", "Archivo de prueba"],
+        index=0
+    )
+    
+    audio_base64 = None
+    if modo_entrada == "Archivo de prueba":
+        st.info("Cargá un archivo de audio (ruido rosa recomendado) para calibración.")
+        archivo = st.file_uploader(
+            "Cargar archivo de audio",
+            type=['wav', 'mp3', 'ogg', 'm4a'],
+            help="Archivos soportados: WAV, MP3, OGG, M4A"
+        )
+        
+        if archivo is not None:
+            audio_bytes = archivo.read()
+            audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+            st.success(f"Archivo cargado: {archivo.name}")
+            st.audio(audio_bytes, format=archivo.type)
+        else:
+            st.warning("No se cargó ningún archivo. Usá el micrófono o cargá un archivo.")
+    
+    st.divider()
+    st.caption("💡 El ruido rosa es ideal para calibración porque tiene energía igual en todas las octavas.")
 
 st.markdown("""
 <style>
@@ -29,7 +60,6 @@ st.markdown("""
     .stSelectbox label { color: #94a3b8 !important; font-weight: 500 !important; font-size: 13px !important; }
     .stSubheader { color: #f1f5f9 !important; font-weight: 700 !important; }
     .stCaption { color: #64748b !important; }
-    section[data-testid="stSidebar"] { display: none; }
     .stHtml iframe { border: none !important; }
     .stHtml { overflow-x: hidden !important; }
     @media (max-width: 768px) { .stColumns { flex-direction: column !important; } .stColumns > div { width: 100% !important; } }
@@ -74,13 +104,23 @@ st.divider()
 st.subheader("🎤 Escuchá en tiempo real")
 st.caption("Activá el micrófono, poné la música a volumen de evento y el afinador te dirá qué ajustar.")
 
-ctx = _json.dumps({"lugar": lugar, "genero": genero}, ensure_ascii=False)
+# Preparar datos para el componente
+ctx_dict = {"lugar": lugar, "genero": genero}
+if modo_entrada == "Archivo de prueba" and audio_base64:
+    ctx_dict["audioBase64"] = audio_base64
+    ctx_dict["modo"] = "archivo"
+else:
+    ctx_dict["modo"] = "microfono"
+
+ctx = _json.dumps(ctx_dict, ensure_ascii=False)
+
+btn_text = "Reproducir y analizar" if ctx_dict["modo"] == "archivo" else "MIC Activar"
 
 COMPONENT_HTML = f"""
 <div id="ecualizador-pro" style="font-family:'Inter',system-ui,sans-serif; overflow:hidden;">
 
   <div id="btnContainer" style="text-align:center; margin-bottom:20px;">
-    <button id="btnStart" onclick="startListening()" class="btn-start">MIC Activar</button>
+    <button id="btnStart" onclick="startListening()" class="btn-start">{btn_text}</button>
     <button id="btnStop" onclick="stopListening()" class="btn-stop">STOP Detener</button>
   </div>
 
@@ -189,6 +229,8 @@ COMPONENT_HTML = f"""
 const CTX = {ctx};
 
 let audioCtx, analyser, source, stream, raf;
+let audioElement = null;  // For file playback mode
+let isFileMode = CTX.modo === "archivo" && CTX.audioBase64;
 const FFT = 4096;
 
 const BANDS = [
@@ -531,13 +573,32 @@ function loop() {{
 
 async function startListening() {{
   try {{
-    stream = await navigator.mediaDevices.getUserMedia({{ audio: true, video: false }});
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = FFT;
     analyser.smoothingTimeConstant = 0.7;
-    source = audioCtx.createMediaStreamSource(stream);
-    source.connect(analyser);
+    
+    if (isFileMode && CTX.audioBase64) {{
+      // File playback mode
+      document.getElementById("status").innerHTML = '<span style="color:#60a5fa;font-weight:600;">Cargando archivo...</span>';
+      
+      audioElement = new Audio();
+      audioElement.src = "data:audio/wav;base64," + CTX.audioBase64;
+      audioElement.loop = true;
+      
+      source = audioCtx.createMediaElementSource(audioElement);
+      source.connect(analyser);
+      analyser.connect(audioCtx.destination);
+      
+      await audioElement.play();
+      document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">O Reproduciendo archivo...</span>';
+    }} else {{
+      // Microphone mode
+      stream = await navigator.mediaDevices.getUserMedia({{ audio: true, video: false }});
+      source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">O Escuchando...</span>';
+    }}
 
     document.getElementById("btnStart").style.display = "none";
     const btnStop = document.getElementById("btnStop");
@@ -546,23 +607,23 @@ async function startListening() {{
     document.getElementById("meters").style.display = "block";
     document.getElementById("spectrumWrap").style.display = "block";
     document.getElementById("instructions").style.display = "block";
-    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">O Escuchando...</span>';
     window.parent.postMessage({{ type: "streamlit:setSize", height: document.body.scrollHeight }}, "*");
     loop();
   }} catch(e) {{
-    document.getElementById("status").innerHTML = '<span style="color:#f87171;">X Micrófono: ' + e.message + '</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#f87171;">X Error: ' + e.message + '</span>';
   }}
 }}
 
 function stopListening() {{
   if (raf) cancelAnimationFrame(raf);
   if (stream) stream.getTracks().forEach(t => t.stop());
+  if (audioElement) {{ audioElement.pause(); audioElement = null; }}
   if (audioCtx) audioCtx.close();
   document.getElementById("btnStart").style.display = "inline-block";
   const btnStop = document.getElementById("btnStop");
   btnStop.style.display = "none";
   btnStop.classList.remove("listening-active");
-    document.getElementById("status").innerHTML = '|| Detenido.';
+  document.getElementById("status").innerHTML = '|| Detenido.';
   const canvas = document.getElementById("spectrumCanvas");
   if (canvas) {{
     const ctx = canvas.getContext("2d");
