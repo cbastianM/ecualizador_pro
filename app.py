@@ -429,7 +429,7 @@ function loop() {{
     document.getElementById("g_" + band.id).style.height = pct + "%";
     document.getElementById("g_" + band.id).style.background = barColor;
     document.getElementById("v_" + band.id).textContent = (rel >= 0 ? "+" : "") + rel.toFixed(1) + " dB";
-    document.getElementById("p_" + band.id).textContent = "\u26A1 Pico: " + formatHz(peakHz);
+    document.getElementById("p_" + band.id).textContent = "⚡ Pico: " + formatHz(peakHz);
 
     const inst = getInstruction(band.id, rel, peakHz, CTX);
     const row = document.getElementById("inst_" + band.id);
@@ -463,12 +463,12 @@ async function startListening() {{
     document.getElementById("meters").style.display = "block";
     document.getElementById("spectrumWrap").style.display = "block";
     document.getElementById("instructions").style.display = "block";
-    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">\uD83D\uDD34 Escuchando en tiempo real...</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">🔴 Escuchando en tiempo real...</span>';
 
     window.parent.postMessage({{ type: "streamlit:setSize", height: document.body.scrollHeight }}, "*");
     loop();
   }} catch(e) {{
-    document.getElementById("status").innerHTML = '<span style="color:#f87171;">\u274C No se pudo acceder al micr\u00f3fono: ' + e.message + '</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#f87171;">❌ No se pudo acceder al micrófono: ' + e.message + '</span>';
   }}
 }}
 
@@ -481,7 +481,7 @@ function stopListening() {{
   const btnStop = document.getElementById("btnStop");
   btnStop.style.display = "none";
   btnStop.classList.remove("listening-active");
-  document.getElementById("status").innerHTML = '\u23F8\uFE0F Detenido. Volv\u00E9 a activar para seguir afinando.';
+  document.getElementById("status").innerHTML = '⏸️ Detenido. Volvé a activar para seguir afinando.';
 
   const canvas = document.getElementById("spectrumCanvas");
   if (canvas) {{
