@@ -321,12 +321,12 @@ function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh
     rowBg = "rgba(245,158,11,0.08)"; rowBorder = "#f59e0b";
   }} else if (level > hiTh) {{
     const dbCut = Math.min(6, Math.max(1, Math.round((level - hiTh) / 3)));
-    eqAction = "🔽 BAJAR " + dbCut + " dB en " + freqLabel;
+    eqAction = "v BAJAR " + dbCut + " dB en " + freqLabel;
     eqDetail = "Pico en " + formatHz(peakHz) + " esta fuerte";
     eqColor = "#f87171"; rowBg = "rgba(239,68,68,0.08)"; rowBorder = "#ef4444";
   }} else if (level < loTh) {{
     const dbBoost = Math.min(6, Math.max(1, Math.round((loTh - level) / 3)));
-    eqAction = "🔼 SUBIR " + dbBoost + " dB en " + freqLabel;
+    eqAction = "^ SUBIR " + dbBoost + " dB en " + freqLabel;
     eqDetail = "Nivel bajo en " + formatHz(peakHz);
     eqColor = "#4ade80"; rowBg = "rgba(34,197,94,0.08)"; rowBorder = "#22c55e";
   }} else {{
@@ -344,10 +344,10 @@ function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh
   if (bandId === "bass") {{
     const diff = detectedLow - idealLow;
     if (diff > 30) {{
-      xoAction = "⬇️ Bajar corte a " + idealLow + " Hz";
+      xoAction = "v Bajar corte a " + idealLow + " Hz";
       xoDetail = "Detectado: " + detectedLow + " Hz → Ideal: " + idealLow + " Hz. El corte esta alto, los graves se pierden.";
     }} else if (diff < -30) {{
-      xoAction = "⬆️ Subir corte a " + idealLow + " Hz";
+      xoAction = "^ Subir corte a " + idealLow + " Hz";
       xoDetail = "Detectado: " + detectedLow + " Hz → Ideal: " + idealLow + " Hz. Los graves invaden medios.";
     }} else {{
       xoAction = "✅ Corte OK en " + detectedLow + " Hz";
@@ -377,10 +377,10 @@ function getRecommendations(bandId, level, peakHz, detectedXoLow, detectedXoHigh
   }} else {{
     const diff = detectedHigh - idealXoHigh;
     if (diff > 500) {{
-      xoAction = "⬇️ Bajar entrada a " + formatHz(idealXoHigh);
+      xoAction = "v Bajar entrada a " + formatHz(idealXoHigh);
       xoDetail = "Detectado: " + formatHz(detectedHigh) + " → Ideal: " + formatHz(idealXoHigh) + ". Agudos entran muy tarde.";
     }} else if (diff < -500) {{
-      xoAction = "⬆️ Subir entrada a " + formatHz(idealXoHigh);
+      xoAction = "^ Subir entrada a " + formatHz(idealXoHigh);
       xoDetail = "Detectado: " + formatHz(detectedHigh) + " → Ideal: " + formatHz(idealXoHigh) + ". Agudos invaden medios.";
     }} else {{
       xoAction = "✅ Entrada OK en " + formatHz(detectedHigh);
@@ -510,7 +510,7 @@ async function startListening() {{
     document.getElementById("meters").style.display = "block";
     document.getElementById("spectrumWrap").style.display = "block";
     document.getElementById("instructions").style.display = "block";
-    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">🔴 Escuchando...</span>';
+    document.getElementById("status").innerHTML = '<span style="color:#4ade80;font-weight:600;">O Escuchando...</span>';
     window.parent.postMessage({{ type: "streamlit:setSize", height: document.body.scrollHeight }}, "*");
     loop();
   }} catch(e) {{
