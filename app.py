@@ -544,13 +544,20 @@ function renderEqTable(data, sr) {{
 
     const hzLabel = freq.hz >= 1000 ? (freq.hz/1000) + "K" : freq.hz;
     const refDb = ref.eq[freq.hz] || 0;
-    const dbLabel = refDb > 0 ? "+" + refDb : "" + refDb;
+    const dbLabel = (refDb > 0 ? "+" : "") + refDb;
+
+    let actionText, actionBg;
+    if (color === "#ef4444")        {{ actionText = "↓ BAJAR"; actionBg = "#dc2626"; bgColor = "rgba(239,68,68,0.10)"; borderColor = "rgba(239,68,68,0.55)"; }}
+    else if (color === "#3b82f6")   {{ actionText = "↑ SUBIR"; actionBg = "#2563eb"; bgColor = "rgba(59,130,246,0.10)"; borderColor = "rgba(59,130,246,0.55)"; }}
+    else                            {{ actionText = "✓ OK"; actionBg = "#16a34a"; bgColor = "rgba(34,197,94,0.10)"; borderColor = "rgba(34,197,94,0.55)"; }}
+
     const div = document.createElement("div");
-    div.style.cssText = "background:" + bgColor + ";border:1px solid " + borderColor + ";border-radius:7px;padding:5px 7px;text-align:center;min-width:48px;transition:all 0.3s;";
+    div.style.cssText = "background:" + bgColor + ";border:2px solid " + borderColor + ";border-radius:8px;padding:7px 8px 5px;text-align:center;min-width:62px;transition:all 0.25s;";
     div.innerHTML =
-      '<div style="font-size:7px;font-weight:600;color:#64748b;text-transform:uppercase;margin-bottom:1px;">' + groupLabel + '</div>' +
-      '<div style="font-size:12px;font-weight:700;color:' + color + ';">' + hzLabel + '</div>' +
-      '<div style="font-size:14px;font-weight:800;color:' + color + ';">' + dbLabel + '</div>';
+      '<div style="font-size:8px;font-weight:600;color:#64748b;text-transform:uppercase;margin-bottom:2px;">' + groupLabel + '</div>' +
+      '<div style="font-size:15px;font-weight:800;color:' + color + ';margin-bottom:1px;line-height:1.1;">' + hzLabel + '</div>' +
+      '<div style="font-size:13px;font-weight:700;color:' + color + ';margin-bottom:4px;">' + dbLabel + '</div>' +
+      '<div style="font-size:9px;font-weight:700;color:#fff;background:' + actionBg + ';border-radius:4px;padding:2px 0;margin:0 -4px;">' + actionText + '</div>';
 
     if (freq.group === "graves")  gravesEl.appendChild(div);
     else if (freq.group === "medios") mediosEl.appendChild(div);
